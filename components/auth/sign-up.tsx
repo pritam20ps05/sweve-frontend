@@ -3,6 +3,7 @@
 import {
   authMutationKeys,
   getAuthLinkURL,
+  isPasswordCompromisedError,
   parseAdditionalFieldValue
 } from "@better-auth-ui/core"
 import {
@@ -35,6 +36,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import { AdditionalField } from "./additional-field"
+import { PasswordStrengthMeter } from "./password-strength-meter"
 import { ProviderButtons, type SocialLayout } from "./provider-buttons"
 
 export type SignUpProps = {
@@ -47,6 +49,10 @@ export type SignUpProps = {
    * priority, and social sign-ups are unaffected.
    */
   onSignUpSuccess?: () => void
+}
+
+function withSignupSuccess(email: string) {
+  localStorage.setItem("beginner", "true")
 }
 
 /**
@@ -92,12 +98,22 @@ export function SignUp({
   const { mutate: signUpEmail, isPending: signUpEmailPending } = useSignUpEmail(
     authClient,
     {
-      onError: () => {
+      onError: (error) => {
+        // The haveIBeenPwned plugin rejects on the password itself,
+        // so it belongs against the field rather than in a toast.
+        if (isPasswordCompromisedError(error)) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            password: localization.auth.passwordCompromised
+          }))
+        }
+
         setPassword("")
         setConfirmPassword("")
         resetFetchOptions()
       },
       onSuccess: (_data, { email }) => {
+        withSignupSuccess(email)
         if (emailAndPassword?.requireEmailVerification) {
           sessionStorage.setItem("better-auth-ui.verify-email", email)
           navigate({
@@ -373,6 +389,8 @@ export function SignUp({
                   </InputGroup>
 
                   <FieldError>{fieldErrors.password}</FieldError>
+
+                  <PasswordStrengthMeter password={password} />
                 </Field>
 
                 {emailAndPassword?.confirmPassword && (
