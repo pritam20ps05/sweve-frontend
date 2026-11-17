@@ -11,18 +11,23 @@ const navigationItems: NavigationItem[] = [
         href: "/events",
     },
     {
+        label: "New",
+        href: "/create",
+        special: true,
+        localPropAnchor: "beginner",
+    },
+    {
         label: "Organizers",
         href: "/organizations",
-        separatorAfter: true,
     },
     {
         label: "My Tickets",
         href: "/tickets",
-        separatorAfter: true,
     },
     {
         label: "Dashboard",
         href: "/dashboard",
+        // HlocalPropAnchor: "beginner",
     },
 ]
 

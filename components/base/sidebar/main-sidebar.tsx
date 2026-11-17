@@ -1,13 +1,13 @@
 "use client"
 
 import {
-    Fragment, useState,
+    Fragment, useEffect, useState,
 } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-    Building2, Compass, House, LayoutDashboard, ChevronLeft, ChevronRight, Ticket, Search, Info,
     type LucideIcon,
+    Building2, Compass, House, LayoutDashboard, ChevronLeft, ChevronRight, Ticket, Search, Info, Sparkle,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -18,7 +18,35 @@ export type NavigationItem = {
     label: string
     href: string
     icon?: LucideIcon
+    /** 
+     * If true, a separator will be rendered after this item. 
+     */
     separatorAfter?: boolean
+    /**
+     * If true, this item will be styled as a special item, with primary background and zinc-900 text color.
+     */
+    special?: boolean
+    /**
+     * Uses the anchor key from localStorage to decide whether to show an item or not. 
+     * If the value in localStorage is not set `true`, the item will be hidden.
+     * This is useful for showing/hiding items based on user state, such as user onboarding status.
+     * 
+     * @usecase If you want to show an item only when the user is just onboarded, 
+     * you can set `localStorage.setItem('beginner', 'true')` and then set `localPropAnchor: 'beginner'` on the navigation item. 
+     * The item will only be shown when the value in localStorage is 'true'.
+     */
+    localPropAnchor?: string
+    /**
+     * Uses the anchor key from localStorage to decide whether to show an item or not. 
+     * If the value in localStorage is set `true`, the item will be hidden.
+     * This is useful for showing/hiding items based on user state, such as user onboarding status.
+     * 
+     * @behavior Works opposite to `localPropAnchor`. If the value in localStorage matches, the item will be hidden.
+     * @usecase If you don't want to show an item only when the user is just onboarded, 
+     * you can set `localStorage.setItem('beginner', 'true')` and then set `HlocalPropAnchor: 'beginner'` on the navigation item. 
+     * The item will be hidden when the value in localStorage is 'true'.
+     */
+    HlocalPropAnchor?: string
 }
 
 const iconMap: Record<string, LucideIcon> = {
@@ -28,6 +56,7 @@ const iconMap: Record<string, LucideIcon> = {
     "/tickets": Ticket,
     "/dashboard": LayoutDashboard,
     "/search": Search,
+    "/create": Sparkle
 }
 
 export function MainSidebar({ navItems }: { navItems: NavigationItem[] }) {
@@ -47,18 +76,17 @@ export function MainSidebar({ navItems }: { navItems: NavigationItem[] }) {
     const MOBILE_NAV_SLOTS = 5
     const hasMore = navItems.length > MOBILE_NAV_SLOTS
     const MOBILE_PAGE_SIZE = MOBILE_NAV_SLOTS - 1
-    const navigationPages = hasMore
-        ? Array.from(
-            {
-                length: Math.ceil(navItems.length / MOBILE_PAGE_SIZE),
-            },
-            (_, index) => {
-                const maxStartIndex = Math.max(0, navItems.length - MOBILE_PAGE_SIZE)
-                const startIndex = Math.min(index * MOBILE_PAGE_SIZE, maxStartIndex)
+    const navigationPages = hasMore ? Array.from(
+        {
+            length: Math.ceil(navItems.length / MOBILE_PAGE_SIZE),
+        },
+        (_, index) => {
+            const maxStartIndex = Math.max(0, navItems.length - MOBILE_PAGE_SIZE)
+            const startIndex = Math.min(index * MOBILE_PAGE_SIZE, maxStartIndex)
 
-                return navItems.slice(startIndex, startIndex + MOBILE_PAGE_SIZE)
-            }
-        )
+            return navItems.slice(startIndex, startIndex + MOBILE_PAGE_SIZE)
+        }
+    )
         : [navItems]
     const currentPage = mobilePage % navigationPages.length
     const mobileVisibleItems = navigationPages[currentPage]
@@ -151,15 +179,73 @@ function SidebarItem({
 }) {
     const Icon = item.icon || Info
 
+    if (item.localPropAnchor) {
+        const [isVisible, setIsVisible] = useState(false)
+        const path = usePathname()
+
+        useEffect(() => {
+            const anchor = localStorage.getItem(item.localPropAnchor!);
+
+            if (anchor === "true") {
+                setIsVisible(true)
+            } else {
+                setIsVisible(false)
+            }
+        }, [path])
+
+
+        return (
+            isVisible &&
+            <Item item={item} active={active} mobile={mobile} Icon={Icon} />
+        )
+    }
+
+    if (item.HlocalPropAnchor) {
+        const [isVisible, setIsVisible] = useState(true)
+        const path = usePathname()
+
+        useEffect(() => {
+            const anchor = localStorage.getItem(item.HlocalPropAnchor!);
+
+            if (anchor === "true") {
+                setIsVisible(false)
+            } else {
+                setIsVisible(true)
+            }
+        }, [path])
+
+
+        return (
+            isVisible &&
+            <Item item={item} active={active} mobile={mobile} Icon={Icon} />
+        )
+    }
+
+    return (
+        <Item item={item} active={active} mobile={mobile} Icon={Icon} />
+    )
+}
+
+function Item({
+    item,
+    Icon,
+    active,
+    mobile,
+}: {
+    item: NavigationItem
+    Icon: LucideIcon
+    active: boolean
+    mobile: boolean
+}) {
     return (
         <Button
-            variant={active ? "secondary" : "ghost"}
+            variant={item.special ? "default" : (active ? "secondary" : "ghost")}
             asChild
             className={cn(
-                "shrink-0 rounded-xl",
-                "text-muted-foreground",
-                "hover:text-foreground",
-                active && "text-foreground",
+                "shrink-0 rounded-xl transition-all duration-300 ease-out",
+                !item.special && "text-muted-foreground",
+                item.special ? "hover:bg-primary text-zinc-900" : "hover:text-foreground",
+                !item.special && active && "text-foreground",
 
                 mobile
                     ? "h-11 w-11 justify-center p-0"
@@ -189,4 +275,3 @@ function SidebarItem({
         </Button>
     )
 }
-
